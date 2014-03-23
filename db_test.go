@@ -1,6 +1,7 @@
 package bolt
 
 import (
+	"io"
 	"io/ioutil"
 	"math/rand"
 	"os"
@@ -62,6 +63,18 @@ func TestDBOpenFileError(t *testing.T) {
 		}
 		err := db.Open(path+"/youre-not-my-real-parent", 0666)
 		assert.Equal(t, err, exp)
+	})
+}
+
+// Ensure that write errors to the meta file handler during initialization are returned.
+func TestDBMetaInitWriteError(t *testing.T) {
+	withDB(func(db *DB, path string) {
+		// Mock the file system.
+		db.ops.metaWriteAt = func(p []byte, offset int64) (n int, err error) { return 0, io.ErrShortWrite }
+
+		// Open the database.
+		err := db.Open(path, 0666)
+		assert.Equal(t, err, io.ErrShortWrite)
 	})
 }
 
