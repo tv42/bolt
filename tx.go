@@ -240,7 +240,7 @@ func (tx *Tx) close() {
 // Copy will write exactly tx.Size() bytes into the writer.
 func (tx *Tx) Copy(w io.Writer) error {
 	// Open reader on the database.
-	f, err := os.OpenFile(tx.db.path, os.O_RDONLY|odirect, 0)
+	f, err := os.Open(tx.db.path)
 	if err != nil {
 		return err
 	}
