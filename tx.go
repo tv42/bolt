@@ -239,28 +239,20 @@ func (tx *Tx) close() {
 // using the database while a copy is in progress.
 // Copy will write exactly tx.Size() bytes into the writer.
 func (tx *Tx) Copy(w io.Writer) error {
-	// Open reader on the database.
-	f, err := os.Open(tx.db.path)
-	if err != nil {
-		return err
-	}
-
 	// Copy the meta pages.
 	tx.db.metalock.Lock()
-	_, err = io.CopyN(w, f, int64(tx.db.pageSize*2))
+	_, err := w.Write(tx.db.data[:tx.db.pageSize*2])
 	tx.db.metalock.Unlock()
 	if err != nil {
-		_ = f.Close()
 		return fmt.Errorf("meta copy: %s", err)
 	}
 
 	// Copy data pages.
-	if _, err := io.CopyN(w, f, tx.Size()-int64(tx.db.pageSize*2)); err != nil {
-		_ = f.Close()
+	if _, err := w.Write(tx.db.data[tx.db.pageSize*2 : tx.Size()]); err != nil {
 		return err
 	}
 
-	return f.Close()
+	return nil
 }
 
 // CopyFile copies the entire database to file at the given path.
