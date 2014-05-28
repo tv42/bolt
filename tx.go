@@ -248,7 +248,7 @@ func (tx *Tx) Copy(w io.Writer) error {
 	}
 
 	// Copy data pages.
-	if _, err := w.Write(tx.db.data[tx.db.pageSize*2 : tx.Size()]); err != nil {
+	if _, err := writeAvoidingCache(tx.db.data[tx.db.pageSize*2:tx.Size()], w); err != nil {
 		return err
 	}
 
