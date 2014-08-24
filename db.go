@@ -63,6 +63,10 @@ type DB struct {
 	freelist *freelist
 	stats    Stats
 
+	batchMaxSize  int
+	batchMaxDelay time.Duration
+	batch         unsafe.Pointer
+
 	rwlock   sync.Mutex   // Allows only one writer at a time.
 	metalock sync.Mutex   // Protects meta page access.
 	mmaplock sync.RWMutex // Protects mmap access during remapping.
@@ -97,6 +101,22 @@ func Open(path string, mode os.FileMode, options *Options) (*DB, error) {
 	// Set default options if no options are provided.
 	if options == nil {
 		options = DefaultOptions
+	}
+
+	db.batchMaxSize = options.BatchMaxSize
+	if db.batchMaxSize == 0 {
+		db.batchMaxSize = DefaultOptions.BatchMaxSize
+	}
+	if db.batchMaxSize <= 0 {
+		return nil, fmt.Errorf("BatchMaxSize is impossibly low: %v", db.batchMaxSize)
+	}
+
+	db.batchMaxDelay = options.BatchMaxDelay
+	if db.batchMaxDelay == 0 {
+		db.batchMaxDelay = DefaultOptions.BatchMaxDelay
+	}
+	if db.batchMaxDelay <= 0 {
+		return nil, fmt.Errorf("BatchMaxDelay is impossibly low: %v", db.batchMaxDelay)
 	}
 
 	// Open data file and separate sync handler for metadata writes.
@@ -584,12 +604,22 @@ type Options struct {
 	// When set to zero it will wait indefinitely. This option is only
 	// available on Darwin and Linux.
 	Timeout time.Duration
+
+	// BatchMaxSize is the maximum size of a batch. If <=0, the value
+	// from DefaultOptions is used instead.
+	BatchMaxSize int
+
+	// BatchMaxDelay sets the maximum delay before a batch starts. If
+	// <=0, the value from DefaultOptions is used instead.
+	BatchMaxDelay time.Duration
 }
 
 // DefaultOptions represent the options used if nil options are passed into Open().
 // No timeout is used which will cause Bolt to wait indefinitely for a lock.
 var DefaultOptions = &Options{
-	Timeout: 0,
+	Timeout:       0,
+	BatchMaxSize:  1000,
+	BatchMaxDelay: 10 * time.Millisecond,
 }
 
 // Stats represents statistics about the database.
