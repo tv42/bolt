@@ -27,6 +27,14 @@ const magic uint32 = 0xED0CDAED
 // must be synchronzied using the msync(2) syscall.
 const IgnoreNoSync = runtime.GOOS == "openbsd"
 
+// Default values if not set in a DB instance.
+//
+// Do not change while databases are open.
+var (
+	DefaultMaxBatchSize  int = 1000
+	DefaultMaxBatchDelay     = 10 * time.Millisecond
+)
+
 // DB represents a collection of buckets persisted to a file on disk.
 // All data access is performed through transactions which can be obtained through the DB.
 // All the functions on DB will return a ErrDatabaseNotOpen if accessed before Open() is called.
@@ -49,6 +57,18 @@ type DB struct {
 	// THIS IS UNSAFE. PLEASE USE WITH CAUTION.
 	NoSync bool
 
+	// MaxBatchSize is the maximum size of a batch. If <=0, the value
+	// from DefaultMaxBatchSize is used instead.
+	//
+	// Do not change concurrently with calls to Batch.
+	MaxBatchSize int
+
+	// MaxBatchDelay sets the maximum delay before a batch starts. If
+	// <=0, the value from DefaultMaxBatchDelay is used instead.
+	//
+	// Do not change concurrently with calls to Batch.
+	MaxBatchDelay time.Duration
+
 	path     string
 	file     *os.File
 	dataref  []byte
@@ -62,6 +82,9 @@ type DB struct {
 	txs      []*Tx
 	freelist *freelist
 	stats    Stats
+
+	batchMu sync.Mutex
+	batch   *batch
 
 	rwlock   sync.Mutex   // Allows only one writer at a time.
 	metalock sync.Mutex   // Protects meta page access.
@@ -97,6 +120,20 @@ func Open(path string, mode os.FileMode, options *Options) (*DB, error) {
 	// Set default options if no options are provided.
 	if options == nil {
 		options = DefaultOptions
+	}
+
+	if db.MaxBatchSize == 0 {
+		db.MaxBatchSize = DefaultMaxBatchSize
+	}
+	if db.MaxBatchSize <= 0 {
+		return nil, fmt.Errorf("MaxBatchSize is impossibly low: %v", db.MaxBatchSize)
+	}
+
+	if db.MaxBatchDelay == 0 {
+		db.MaxBatchDelay = DefaultMaxBatchDelay
+	}
+	if db.MaxBatchDelay <= 0 {
+		return nil, fmt.Errorf("MaxBatchDelay is impossibly low: %v", db.MaxBatchDelay)
 	}
 
 	// Open data file and separate sync handler for metadata writes.
