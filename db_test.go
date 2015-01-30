@@ -1,6 +1,7 @@
 package bolt_test
 
 import (
+	"encoding/binary"
 	"errors"
 	"flag"
 	"fmt"
@@ -567,6 +568,34 @@ func NewTestDB() *TestDB {
 	return &TestDB{db}
 }
 
+// MustView executes a read-only function. Panic on error.
+func (db *TestDB) MustView(fn func(tx *bolt.Tx) error) {
+	if err := db.DB.View(func(tx *bolt.Tx) error {
+		return fn(tx)
+	}); err != nil {
+		panic(err.Error())
+	}
+}
+
+// MustUpdate executes a read-write function. Panic on error.
+func (db *TestDB) MustUpdate(fn func(tx *bolt.Tx) error) {
+	if err := db.DB.View(func(tx *bolt.Tx) error {
+		return fn(tx)
+	}); err != nil {
+		panic(err.Error())
+	}
+}
+
+// MustCreateBucket creates a new bucket. Panic on error.
+func (db *TestDB) MustCreateBucket(name []byte) {
+	if err := db.Update(func(tx *bolt.Tx) error {
+		_, err := tx.CreateBucket([]byte(name))
+		return err
+	}); err != nil {
+		panic(err.Error())
+	}
+}
+
 // Close closes the database and deletes the underlying file.
 func (db *TestDB) Close() {
 	// Log statistics.
@@ -699,3 +728,13 @@ func fileSize(path string) int64 {
 
 func warn(v ...interface{})              { fmt.Fprintln(os.Stderr, v...) }
 func warnf(msg string, v ...interface{}) { fmt.Fprintf(os.Stderr, msg+"\n", v...) }
+
+// u64tob converts a uint64 into an 8-byte slice.
+func ui64tob(v uint64) []byte {
+	b := make([]byte, 8)
+	binary.BigEndian.PutUint64(b, v)
+	return b
+}
+
+// btou64 converts an 8-byte slice into a uint64.
+func btou64(b []byte) uint64 { return binary.BigEndian.Uint64(b) }
