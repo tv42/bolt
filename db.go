@@ -27,6 +27,14 @@ const magic uint32 = 0xED0CDAED
 // must be synchronzied using the msync(2) syscall.
 const IgnoreNoSync = runtime.GOOS == "openbsd"
 
+// Default values if not set in a DB instance.
+//
+// Do not change while databases are open.
+var (
+	DefaultMaxBatchSize  int = 1000
+	DefaultMaxBatchDelay     = 10 * time.Millisecond
+)
+
 // DB represents a collection of buckets persisted to a file on disk.
 // All data access is performed through transactions which can be obtained through the DB.
 // All the functions on DB will return a ErrDatabaseNotOpen if accessed before Open() is called.
@@ -49,6 +57,18 @@ type DB struct {
 	// THIS IS UNSAFE. PLEASE USE WITH CAUTION.
 	NoSync bool
 
+	// MaxBatchSize is the maximum size of a batch. If <=0, the value
+	// from DefaultMaxBatchSize is used instead.
+	//
+	// Do not change concurrently with calls to Batch.
+	MaxBatchSize int
+
+	// MaxBatchDelay sets the maximum delay before a batch starts. If
+	// <=0, the value from DefaultMaxBatchDelay is used instead.
+	//
+	// Do not change concurrently with calls to Batch.
+	MaxBatchDelay time.Duration
+
 	path     string
 	file     *os.File
 	dataref  []byte
@@ -63,9 +83,7 @@ type DB struct {
 	freelist *freelist
 	stats    Stats
 
-	batchMaxSize  int
-	batchMaxDelay time.Duration
-	batch         unsafe.Pointer
+	batch unsafe.Pointer
 
 	rwlock   sync.Mutex   // Allows only one writer at a time.
 	metalock sync.Mutex   // Protects meta page access.
@@ -103,20 +121,18 @@ func Open(path string, mode os.FileMode, options *Options) (*DB, error) {
 		options = DefaultOptions
 	}
 
-	db.batchMaxSize = options.BatchMaxSize
-	if db.batchMaxSize == 0 {
-		db.batchMaxSize = DefaultOptions.BatchMaxSize
+	if db.MaxBatchSize == 0 {
+		db.MaxBatchSize = DefaultMaxBatchSize
 	}
-	if db.batchMaxSize <= 0 {
-		return nil, fmt.Errorf("BatchMaxSize is impossibly low: %v", db.batchMaxSize)
+	if db.MaxBatchSize <= 0 {
+		return nil, fmt.Errorf("MaxBatchSize is impossibly low: %v", db.MaxBatchSize)
 	}
 
-	db.batchMaxDelay = options.BatchMaxDelay
-	if db.batchMaxDelay == 0 {
-		db.batchMaxDelay = DefaultOptions.BatchMaxDelay
+	if db.MaxBatchDelay == 0 {
+		db.MaxBatchDelay = DefaultMaxBatchDelay
 	}
-	if db.batchMaxDelay <= 0 {
-		return nil, fmt.Errorf("BatchMaxDelay is impossibly low: %v", db.batchMaxDelay)
+	if db.MaxBatchDelay <= 0 {
+		return nil, fmt.Errorf("MaxBatchDelay is impossibly low: %v", db.MaxBatchDelay)
 	}
 
 	// Open data file and separate sync handler for metadata writes.
@@ -604,22 +620,12 @@ type Options struct {
 	// When set to zero it will wait indefinitely. This option is only
 	// available on Darwin and Linux.
 	Timeout time.Duration
-
-	// BatchMaxSize is the maximum size of a batch. If <=0, the value
-	// from DefaultOptions is used instead.
-	BatchMaxSize int
-
-	// BatchMaxDelay sets the maximum delay before a batch starts. If
-	// <=0, the value from DefaultOptions is used instead.
-	BatchMaxDelay time.Duration
 }
 
 // DefaultOptions represent the options used if nil options are passed into Open().
 // No timeout is used which will cause Bolt to wait indefinitely for a lock.
 var DefaultOptions = &Options{
-	Timeout:       0,
-	BatchMaxSize:  1000,
-	BatchMaxDelay: 10 * time.Millisecond,
+	Timeout: 0,
 }
 
 // Stats represents statistics about the database.

@@ -69,7 +69,7 @@ func (b *batch) master(db *DB, fn func(*Tx) error) error {
 	b.calls = append(b.calls, call{fn: fn, err: ch})
 	b.mu.Unlock()
 
-	t := time.NewTimer(b.db.batchMaxDelay)
+	t := time.NewTimer(b.db.MaxBatchDelay)
 	select {
 	case <-t.C:
 	case <-b.full:
@@ -150,7 +150,7 @@ func (b *batch) merge(fn func(*Tx) error) chan error {
 	}
 
 	var ch chan error
-	if len(b.calls) < b.db.batchMaxSize {
+	if len(b.calls) < b.db.MaxBatchSize {
 		ch = make(chan error, 1)
 		c := call{
 			fn:  fn,
@@ -159,7 +159,7 @@ func (b *batch) merge(fn func(*Tx) error) chan error {
 		b.calls = append(b.calls, c)
 	}
 
-	if len(b.calls) >= b.db.batchMaxSize {
+	if len(b.calls) >= b.db.MaxBatchSize {
 		// wake up batch, it's ready to run
 		select {
 		case b.full <- struct{}{}:
