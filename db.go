@@ -83,7 +83,8 @@ type DB struct {
 	freelist *freelist
 	stats    Stats
 
-	batch unsafe.Pointer
+	batchMu sync.Mutex
+	batch   *batch
 
 	rwlock   sync.Mutex   // Allows only one writer at a time.
 	metalock sync.Mutex   // Protects meta page access.
