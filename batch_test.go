@@ -2,6 +2,7 @@ package bolt_test
 
 import (
 	"testing"
+	"time"
 
 	"github.com/boltdb/bolt"
 )
@@ -71,4 +72,42 @@ func TestDB_Batch_Panic(t *testing.T) {
 	if g, e := problem, bork; g != e {
 		t.Fatalf("wrong error: %v != %v", g, e)
 	}
+}
+
+func TestDB_BatchFull(t *testing.T) {
+	db := NewTestDB()
+	defer db.Close()
+	db.MustCreateBucket([]byte("widgets"))
+
+	n := 3
+	// high enough to never trigger here
+	db.MaxBatchDelay = 1 * time.Hour
+	// make sure everything will not fit in one batch
+	db.MaxBatchSize = n - 1
+	ch := make(chan error)
+	for i := 0; i < n; i++ {
+		go func(i int) {
+			ch <- db.Batch(func(tx *bolt.Tx) error {
+				return tx.Bucket([]byte("widgets")).Put(ui64tob(uint64(i)), []byte{})
+			})
+		}(i)
+	}
+
+	// Check all responses to make sure there's no error.
+	for i := 0; i < n; i++ {
+		if err := <-ch; err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	// Ensure data is correct.
+	db.MustView(func(tx *bolt.Tx) error {
+		b := tx.Bucket([]byte("widgets"))
+		for i := 0; i < n; i++ {
+			if v := b.Get(ui64tob(uint64(i))); v == nil {
+				t.Errorf("key not found: %d", i)
+			}
+		}
+		return nil
+	})
 }

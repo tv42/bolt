@@ -22,15 +22,14 @@ func (db *DB) Batch(fn func(*Tx) error) error {
 	errCh := make(chan error, 1)
 
 	db.batchMu.Lock()
+
 	if db.batch == nil {
 		db.batch = &batch{
 			db: db,
 		}
 		db.batch.timer = time.AfterFunc(db.MaxBatchDelay, db.batch.trigger)
 	}
-	if len(db.batch.calls) < db.MaxBatchSize {
-		db.batch.calls = append(db.batch.calls, call{fn: fn, err: errCh})
-	}
+	db.batch.calls = append(db.batch.calls, call{fn: fn, err: errCh})
 	if len(db.batch.calls) >= db.MaxBatchSize {
 		// wake up batch, it's ready to run
 		go db.batch.trigger()
