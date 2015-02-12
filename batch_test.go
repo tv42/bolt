@@ -125,3 +125,43 @@ func TestDB_BatchFull(t *testing.T) {
 		return nil
 	})
 }
+
+func TestDB_BatchTime(t *testing.T) {
+	db := NewTestDB()
+	defer db.Close()
+	db.MustCreateBucket([]byte("widgets"))
+
+	const size = 1
+	// buffered so we never leak goroutines
+	ch := make(chan error, size)
+	put := func(i int) {
+		ch <- db.Batch(func(tx *bolt.Tx) error {
+			return tx.Bucket([]byte("widgets")).Put(ui64tob(uint64(i)), []byte{})
+		})
+	}
+
+	db.MaxBatchSize = 1000
+	db.MaxBatchDelay = 0
+
+	go put(1)
+
+	// Batch must trigger by time alone.
+
+	// Check all responses to make sure there's no error.
+	for i := 0; i < size; i++ {
+		if err := <-ch; err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	// Ensure data is correct.
+	db.MustView(func(tx *bolt.Tx) error {
+		b := tx.Bucket([]byte("widgets"))
+		for i := 1; i <= size; i++ {
+			if v := b.Get(ui64tob(uint64(i))); v == nil {
+				t.Errorf("key not found: %d", i)
+			}
+		}
+		return nil
+	})
+}
