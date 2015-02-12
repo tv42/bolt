@@ -152,8 +152,8 @@ set variables in the enclosing scope:
 var id uint64
 err := db.Batch(func(tx *bolt.Tx) error {
 	// Find last key in bucket, decode as bigendian uint64, increment
-    // by one, encode back to []byte, and add new key.
-    ...
+	// by one, encode back to []byte, and add new key.
+	...
 	id = newValue
 	return nil
 })
