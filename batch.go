@@ -1,6 +1,7 @@
 package bolt
 
 import (
+	"errors"
 	"fmt"
 	"sync"
 	"time"
@@ -37,8 +38,8 @@ func (db *DB) Batch(fn func(*Tx) error) error {
 	db.batchMu.Unlock()
 
 	err := <-errCh
-	if p, ok := err.(panicked); ok {
-		panic(p.reason)
+	if err == trySolo {
+		err = db.Update(fn)
 	}
 	return err
 }
@@ -90,10 +91,8 @@ retry:
 			// shorten b.calls here because b.started has been set.
 			c := b.calls[failIdx]
 			b.calls[failIdx], b.calls = b.calls[len(b.calls)-1], b.calls[:len(b.calls)-1]
-			// run it solo, report result, continue with the rest of the batch
-			c.err <- b.db.Update(func(tx *Tx) error {
-				return safelyCall(c.fn, tx)
-			})
+			// tell the submitter re-run it solo, continue with the rest of the batch
+			c.err <- trySolo
 			continue retry
 		}
 
@@ -106,6 +105,11 @@ retry:
 		break retry
 	}
 }
+
+// trySolo is a special sentinel error value used for signaling that a
+// transaction function should be re-run. It should never be seen by
+// callers.
+var trySolo = errors.New("batch function returned an error and should be re-run solo")
 
 type panicked struct {
 	reason interface{}
