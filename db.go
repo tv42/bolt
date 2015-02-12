@@ -57,14 +57,18 @@ type DB struct {
 	// THIS IS UNSAFE. PLEASE USE WITH CAUTION.
 	NoSync bool
 
-	// MaxBatchSize is the maximum size of a batch. If <=0, the value
-	// from DefaultMaxBatchSize is used instead.
+	// MaxBatchSize is the maximum size of a batch. Default value is
+	// copied from DefaultMaxBatchSize in Open.
+	//
+	// If <=0, disables batching.
 	//
 	// Do not change concurrently with calls to Batch.
 	MaxBatchSize int
 
-	// MaxBatchDelay sets the maximum delay before a batch starts. If
-	// <=0, the value from DefaultMaxBatchDelay is used instead.
+	// MaxBatchDelay is the maximum delay before a batch starts.
+	// Default value is copied from DefaultMaxBatchDelay in Open.
+	//
+	// If <=0, effectively disables batching.
 	//
 	// Do not change concurrently with calls to Batch.
 	MaxBatchDelay time.Duration
@@ -122,19 +126,9 @@ func Open(path string, mode os.FileMode, options *Options) (*DB, error) {
 		options = DefaultOptions
 	}
 
-	if db.MaxBatchSize == 0 {
-		db.MaxBatchSize = DefaultMaxBatchSize
-	}
-	if db.MaxBatchSize <= 0 {
-		return nil, fmt.Errorf("MaxBatchSize is impossibly low: %v", db.MaxBatchSize)
-	}
-
-	if db.MaxBatchDelay == 0 {
-		db.MaxBatchDelay = DefaultMaxBatchDelay
-	}
-	if db.MaxBatchDelay <= 0 {
-		return nil, fmt.Errorf("MaxBatchDelay is impossibly low: %v", db.MaxBatchDelay)
-	}
+	// Set default values for later DB operations.
+	db.MaxBatchSize = DefaultMaxBatchSize
+	db.MaxBatchDelay = DefaultMaxBatchDelay
 
 	// Open data file and separate sync handler for metadata writes.
 	db.path = path
