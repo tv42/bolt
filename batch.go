@@ -10,8 +10,8 @@ import (
 // Batch calls fn as part of a batch. It behaves similar to Update,
 // except:
 //
-// 1. multiple Batch function calls can be combined into a single
-// Bolt transaction.
+// 1. concurrent Batch calls can be combined into a single Bolt
+// transaction.
 //
 // 2. the function passed to Batch may be called multiple times,
 // regardless of whether it returns error or not.
@@ -19,6 +19,8 @@ import (
 // This means that Batch function side effects must be idempotent and
 // take permanent effect only after a successful return is seen in
 // caller.
+//
+// Batch is only useful when there are multiple goroutines calling it.
 func (db *DB) Batch(fn func(*Tx) error) error {
 	errCh := make(chan error, 1)
 

@@ -139,11 +139,14 @@ err := db.Batch(func(tx *bolt.Tx) error {
 })
 ```
 
-Batch calls are opportunistically combined into larger transactions.
-The trade-off is that `Batch` can call the given function multiple
-times, if parts of the transaction fail. The function must be
-idempotent and side effects must take effect only after a successful
-return from `DB.Batch()`.
+Concurrent Batch calls are opportunistically combined into larger
+transactions. Batch is only useful when there are multiple goroutines
+calling it.
+
+The trade-off is that `Batch` can call the given
+function multiple times, if parts of the transaction fail. The
+function must be idempotent and side effects must take effect only
+after a successful return from `DB.Batch()`.
 
 For example: don't display messages from inside the function, instead
 set variables in the enclosing scope:
