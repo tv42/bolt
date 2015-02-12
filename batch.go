@@ -55,10 +55,13 @@ type batch struct {
 	calls []call
 }
 
+// trigger runs the batch if it hasn't already been run.
 func (b *batch) trigger() {
 	b.start.Do(b.run)
 }
 
+// run performs the transactions in the batch and communicates results
+// back to DB.Batch.
 func (b *batch) run() {
 	b.db.batchMu.Lock()
 	b.timer.Stop()
