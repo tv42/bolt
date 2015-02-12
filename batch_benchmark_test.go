@@ -45,13 +45,13 @@ func BenchmarkDBBatchAutomatic(b *testing.B) {
 		close(start)
 		wg.Wait()
 	}
-	b.StopTimer()
 }
 
 func BenchmarkDBBatchSingle(b *testing.B) {
 	db := NewTestDB()
 	defer db.Close()
 	db.MustCreateBucket([]byte("bench"))
+
 	h := fnv.New32a()
 	buf := make([]byte, 4)
 
@@ -82,13 +82,13 @@ func BenchmarkDBBatchSingle(b *testing.B) {
 		close(start)
 		wg.Wait()
 	}
-	b.StopTimer()
 }
 
 func BenchmarkDBBatchManual10x100(b *testing.B) {
 	db := NewTestDB()
 	defer db.Close()
 	db.MustCreateBucket([]byte("bench"))
+
 	h := fnv.New32a()
 	buf := make([]byte, 4)
 
@@ -121,6 +121,4 @@ func BenchmarkDBBatchManual10x100(b *testing.B) {
 		close(start)
 		wg.Wait()
 	}
-
-	b.StopTimer()
 }
