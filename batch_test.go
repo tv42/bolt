@@ -79,22 +79,36 @@ func TestDB_BatchFull(t *testing.T) {
 	defer db.Close()
 	db.MustCreateBucket([]byte("widgets"))
 
-	n := 3
-	// high enough to never trigger here
-	db.MaxBatchDelay = 1 * time.Hour
-	// make sure everything will not fit in one batch
-	db.MaxBatchSize = n - 1
-	ch := make(chan error)
-	for i := 0; i < n; i++ {
-		go func(i int) {
-			ch <- db.Batch(func(tx *bolt.Tx) error {
-				return tx.Bucket([]byte("widgets")).Put(ui64tob(uint64(i)), []byte{})
-			})
-		}(i)
+	const size = 3
+	// buffered so we never leak goroutines
+	ch := make(chan error, size)
+	put := func(i int) {
+		ch <- db.Batch(func(tx *bolt.Tx) error {
+			return tx.Bucket([]byte("widgets")).Put(ui64tob(uint64(i)), []byte{})
+		})
 	}
 
+	db.MaxBatchSize = size
+	// high enough to never trigger here
+	db.MaxBatchDelay = 1 * time.Hour
+
+	go put(1)
+	go put(2)
+
+	// Give the batch a chance to exhibit bugs.
+	time.Sleep(10 * time.Millisecond)
+
+	// not triggered yet
+	select {
+	case <-ch:
+		t.Fatalf("batch triggered too early")
+	default:
+	}
+
+	go put(3)
+
 	// Check all responses to make sure there's no error.
-	for i := 0; i < n; i++ {
+	for i := 0; i < size; i++ {
 		if err := <-ch; err != nil {
 			t.Fatal(err)
 		}
@@ -103,7 +117,7 @@ func TestDB_BatchFull(t *testing.T) {
 	// Ensure data is correct.
 	db.MustView(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte("widgets"))
-		for i := 0; i < n; i++ {
+		for i := 1; i <= size; i++ {
 			if v := b.Get(ui64tob(uint64(i))); v == nil {
 				t.Errorf("key not found: %d", i)
 			}

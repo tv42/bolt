@@ -22,8 +22,8 @@ func (db *DB) Batch(fn func(*Tx) error) error {
 	errCh := make(chan error, 1)
 
 	db.batchMu.Lock()
-
-	if db.batch == nil {
+	if (db.batch == nil) || (db.batch != nil && len(db.batch.calls) >= db.MaxBatchSize) {
+		// There is no existing batch, or the existing batch is full; start a new one.
 		db.batch = &batch{
 			db: db,
 		}
@@ -62,7 +62,11 @@ func (b *batch) trigger() {
 func (b *batch) run() {
 	b.db.batchMu.Lock()
 	b.timer.Stop()
-	b.db.batch = nil
+	// Make sure no new work is added to this batch, but don't break
+	// other batches.
+	if b.db.batch == b {
+		b.db.batch = nil
+	}
 	b.db.batchMu.Unlock()
 
 retry:
