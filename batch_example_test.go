@@ -86,6 +86,9 @@ func ExampleDB_Batch() {
 	srv := httptest.NewServer(count)
 	defer srv.Close()
 
+	// Decrease the batch size to make things more interesting.
+	db.MaxBatchSize = 3
+
 	// Get every path multiple times concurrently.
 	const clients = 10
 	paths := []string{
