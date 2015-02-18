@@ -98,9 +98,9 @@ func BenchmarkDBBatchManual10x100(b *testing.B) {
 				defer wg.Done()
 				<-start
 
-				h := fnv.New32a()
-				buf := make([]byte, 4)
 				insert100 := func(tx *bolt.Tx) error {
+					h := fnv.New32a()
+					buf := make([]byte, 4)
 					for minor := uint32(0); minor < 100; minor++ {
 						binary.LittleEndian.PutUint32(buf, uint32(id*100+minor))
 						h.Reset()
