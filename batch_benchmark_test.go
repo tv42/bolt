@@ -14,9 +14,6 @@ func BenchmarkDBBatchAutomatic(b *testing.B) {
 	defer db.Close()
 	db.MustCreateBucket([]byte("bench"))
 
-	h := fnv.New32a()
-	buf := make([]byte, 4)
-
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		start := make(chan struct{})
@@ -29,6 +26,8 @@ func BenchmarkDBBatchAutomatic(b *testing.B) {
 				defer wg.Done()
 				<-start
 
+				h := fnv.New32a()
+				buf := make([]byte, 4)
 				binary.LittleEndian.PutUint32(buf, id)
 				h.Write(buf[:])
 				k := h.Sum(nil)
@@ -52,9 +51,6 @@ func BenchmarkDBBatchSingle(b *testing.B) {
 	defer db.Close()
 	db.MustCreateBucket([]byte("bench"))
 
-	h := fnv.New32a()
-	buf := make([]byte, 4)
-
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		start := make(chan struct{})
@@ -66,6 +62,8 @@ func BenchmarkDBBatchSingle(b *testing.B) {
 				defer wg.Done()
 				<-start
 
+				h := fnv.New32a()
+				buf := make([]byte, 4)
 				binary.LittleEndian.PutUint32(buf, id)
 				h.Write(buf[:])
 				k := h.Sum(nil)
@@ -89,9 +87,6 @@ func BenchmarkDBBatchManual10x100(b *testing.B) {
 	defer db.Close()
 	db.MustCreateBucket([]byte("bench"))
 
-	h := fnv.New32a()
-	buf := make([]byte, 4)
-
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		start := make(chan struct{})
@@ -103,9 +98,12 @@ func BenchmarkDBBatchManual10x100(b *testing.B) {
 				defer wg.Done()
 				<-start
 
+				h := fnv.New32a()
+				buf := make([]byte, 4)
 				insert100 := func(tx *bolt.Tx) error {
 					for minor := uint32(0); minor < 100; minor++ {
 						binary.LittleEndian.PutUint32(buf, uint32(id*100+minor))
+						h.Reset()
 						h.Write(buf[:])
 						k := h.Sum(nil)
 						b := tx.Bucket([]byte("bench"))
