@@ -107,7 +107,9 @@ func BenchmarkDBBatchManual10x100(b *testing.B) {
 						h.Write(buf[:])
 						k := h.Sum(nil)
 						b := tx.Bucket([]byte("bench"))
-						return b.Put(k, []byte("filler"))
+						if err := b.Put(k, []byte("filler")); err != nil {
+							return err
+						}
 					}
 					return nil
 				}
