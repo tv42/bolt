@@ -90,7 +90,7 @@ retry:
 
 		if failIdx >= 0 {
 			// take the failing transaction out of the batch. it's
-			// safe to shorten b.calls here because b.batch no longer
+			// safe to shorten b.calls here because db.batch no longer
 			// points to us, and we hold the mutex anyway.
 			c := b.calls[failIdx]
 			b.calls[failIdx], b.calls = b.calls[len(b.calls)-1], b.calls[:len(b.calls)-1]
