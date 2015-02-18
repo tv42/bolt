@@ -28,9 +28,7 @@ const magic uint32 = 0xED0CDAED
 const IgnoreNoSync = runtime.GOOS == "openbsd"
 
 // Default values if not set in a DB instance.
-//
-// Do not change while databases are open.
-var (
+const (
 	DefaultMaxBatchSize  int = 1000
 	DefaultMaxBatchDelay     = 10 * time.Millisecond
 )
