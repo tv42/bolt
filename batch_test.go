@@ -19,7 +19,7 @@ func TestDB_Batch(t *testing.T) {
 	for i := 0; i < n; i++ {
 		go func(i int) {
 			ch <- db.Batch(func(tx *bolt.Tx) error {
-				return tx.Bucket([]byte("widgets")).Put(ui64tob(uint64(i)), []byte{})
+				return tx.Bucket([]byte("widgets")).Put(u64tob(uint64(i)), []byte{})
 			})
 		}(i)
 	}
@@ -35,7 +35,7 @@ func TestDB_Batch(t *testing.T) {
 	db.MustView(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte("widgets"))
 		for i := 0; i < n; i++ {
-			if v := b.Get(ui64tob(uint64(i))); v == nil {
+			if v := b.Get(u64tob(uint64(i))); v == nil {
 				t.Errorf("key not found: %d", i)
 			}
 		}
@@ -84,7 +84,7 @@ func TestDB_BatchFull(t *testing.T) {
 	ch := make(chan error, size)
 	put := func(i int) {
 		ch <- db.Batch(func(tx *bolt.Tx) error {
-			return tx.Bucket([]byte("widgets")).Put(ui64tob(uint64(i)), []byte{})
+			return tx.Bucket([]byte("widgets")).Put(u64tob(uint64(i)), []byte{})
 		})
 	}
 
@@ -118,7 +118,7 @@ func TestDB_BatchFull(t *testing.T) {
 	db.MustView(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte("widgets"))
 		for i := 1; i <= size; i++ {
-			if v := b.Get(ui64tob(uint64(i))); v == nil {
+			if v := b.Get(u64tob(uint64(i))); v == nil {
 				t.Errorf("key not found: %d", i)
 			}
 		}
@@ -136,7 +136,7 @@ func TestDB_BatchTime(t *testing.T) {
 	ch := make(chan error, size)
 	put := func(i int) {
 		ch <- db.Batch(func(tx *bolt.Tx) error {
-			return tx.Bucket([]byte("widgets")).Put(ui64tob(uint64(i)), []byte{})
+			return tx.Bucket([]byte("widgets")).Put(u64tob(uint64(i)), []byte{})
 		})
 	}
 
@@ -158,7 +158,7 @@ func TestDB_BatchTime(t *testing.T) {
 	db.MustView(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte("widgets"))
 		for i := 1; i <= size; i++ {
-			if v := b.Get(ui64tob(uint64(i))); v == nil {
+			if v := b.Get(u64tob(uint64(i))); v == nil {
 				t.Errorf("key not found: %d", i)
 			}
 		}
